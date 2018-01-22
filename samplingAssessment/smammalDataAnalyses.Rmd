@@ -1,0 +1,193 @@
+---
+title: "smammalDataAnalyses"
+output: pdf_document
+---
+
+```{r load libraries}
+
+options(stringsAsFactors=F, strip.white=T)
+
+library(stringr)
+library(tidyr)
+library(httr)
+library(jsonlite)
+library(plyr)
+library(dplyr)
+library(ggplot2)
+
+```
+
+```{r set working directory}
+
+if (file.exists('/Users/kthibault/')){
+  mypathtoTWGrepo <- '/Users/kthibault/Documents/GitHub/neonMammalTWG'
+  mypathtoIPTrepo <- '/Users/kthibault/Documents/GitHub/organismalIPT'
+}
+
+setwd(mypathtoTWGrepo)
+
+```
+
+
+```{r load functions}
+
+#function to pull published L1 small mammal box trapping data using the NEON API - returns only the capture data
+source(paste(mypathtoTWGrepo, '/functions/getL1data.R', sep = ''))
+
+#function to pull not yet published data from the Fulcrum database - available only to NEON personnel
+source(paste(mypathtoIPTrepo, '/smammal/scienceCode/getFulcrumData.R', sep = ''))
+
+#function to group trapping nights by bout - bout IDs reflect the date of the nearest new moon
+source(paste(mypathtoTWGrepo, '/functions/assignBoutIDs.R', sep = ''))
+
+#function to add a number of taxonomic data fields to the capture data from the NEON master mammal taxon list, including scientific name and taxon rank
+source(paste(mypathtoTWGrepo, '/functions/get.taxNames.taxonID.R', sep = ''))
+
+#function to count the number of new species added to the list observed per plot per bout on the second and third nights of trapping relative to the previous night
+source(paste(mypathtoTWGrepo, '/functions/countNewSpByNight.R', sep = ''))
+
+#function to subset the dataset to include only one night of trapping for each pathogen grid per bout and/or only two nights
+source(paste(mypathtoTWGrepo, '/functions/subsetDataToFewerNights.R', sep = ''))
+
+#function to create a mean species accumulation curve with increasing number of plots across years of sampling per site
+source(paste(mypathtoTWGrepo, '/functions/calcMeanSpecAccum.R', sep = ''))
+
+#function to identify diversity and pathogen grids based on avergae nights of trapping per bout
+source(paste(mypathtoTWGrepo, '/functions/classifyPlots.R', sep = ''))
+
+```
+
+```{r load datafiles}
+
+#use NEON API to get list of site codes with data
+req <- GET("http://data.neonscience.org/api/v0/products/DP1.10072.001")
+req.text <- content(req, as="text")
+avail <- fromJSON(req.text, simplifyDataFrame=T, flatten=T)
+
+#use NEON API to get the Level 1 data for the small mammal box trapping data product
+captureDataL1 <- getL1data("DP1.10072.001", avail$data$siteCodes$siteCode)
+# fix error discovered while working on bout id assignment
+captureDataL1$collectDate[captureDataL1$plotID == 'UNDE_027' & captureDataL1$collectDate == '2015-08-31'] <- '2016-08-31'
+
+#get latest field data from Fulcrum - available only to NEON personnel
+if (exists(mypathtoIPTrepo)){
+  ing.path <- paste(mypathtoIPTrepo, "/smammal/defData/mam_dataingest_NEON.DOC.001406.txt", sep ="")
+  fulcrumData <- getFulcrumData(ing.path)
+}
+
+```
+
+```{r combine L1 and Fulcrum data - NEON personnel only}
+
+#subset Fulcrum data to only the capture records
+captureDataFulcrum <- fulcrumData %>% filter(trapStatus == 4 | trapStatus == 5) %>% mutate(collectDate = startDate)
+captureDataFulcrum$bloodSampleID <- toupper(captureDataFulcrum$bloodSampleID)
+captureDataFulcrum$fecalSampleID <- toupper(captureDataFulcrum$fecalSampleID)
+captureDataFulcrum$earSampleID <- toupper(captureDataFulcrum$earSampleID)
+captureDataFulcrum$hairSampleID <- toupper(captureDataFulcrum$hairSampleID)
+captureDataFulcrum$voucherSampleID <- toupper(captureDataFulcrum$voucherSampleID)
+
+#get fields to align between L1 and Fulcrum data
+namesToDel <- names(captureDataFulcrum)[!names(captureDataFulcrum) %in% names(captureDataL1)]
+captureDataFulcrum$plotID <- gsub(".mammalGrid.mam", '', captureDataFulcrum$plotID)
+captureDataFulcrum <- captureDataFulcrum %>% select(-which(names(captureDataFulcrum) %in% namesToDel))
+captureDataFulcrum$uid <- NA
+colsToAdd <- names(captureDataL1)[!names(captureDataL1) %in% names(captureDataFulcrum)]
+captureDataL1 <- captureDataL1 %>% select(-which(names(captureDataL1) %in% colsToAdd))
+
+#remove Fulcrum data with nightuids that are present in the L1 data already
+nightsToDel <- unique(captureDataFulcrum$nightuid[captureDataFulcrum$nightuid %in% captureDataL1$nightuid])
+captureDataFnew <- captureDataFulcrum %>% filter(!nightuid %in% nightsToDel)
+
+#combine the two data sources
+captureData <- rbind(captureDataL1, captureDataFnew)
+
+write.csv(captureData, '/Users/kthibault/Documents/mamData20180120.csv', row.names = F)
+
+```
+
+```{r species added by night}
+
+if (!exists('captureData')){
+  if (file.exists('/Users/kthibault/')){
+    captureData <- read.csv('/Users/kthibault/Documents/mamData20180120.csv')
+    captureData <- captureData %>% select(-mo, -date, -year)
+  } else {
+    captureData <- captureDataL1
+  }
+}
+
+captureData <- assignBoutIDs(captureData)
+captureData <- get.taxNames.taxonID(captureData, mypathtoTWGrepo)
+
+spByPlot <- captureData %>% filter(taxonRank == 'species' & taxonProtocolCategory == 'target') %>% distinct(boutID, collectDate, plotID, taxonID)
+
+newSpAddedByNight <- countNewSpByNight(spByPlot)
+
+plot(newSpAddedByNight$night, newSpAddedByNight$newTaxa)
+
+ggplot(newSpAddedByNight, aes(x = night, y = newTaxa)) + 
+  geom_boxplot() +
+  facet_wrap(~siteID)
+
+ggsave('newSpAddedByNightBySite.png')
+
+ggplot(newSpAddedByNight, aes(x = night, y = newTaxa)) + 
+  geom_boxplot()
+
+ggsave('newSpAddedByNightAllSites.png')
+
+```
+
+```{r create datasets with varying nights of trapping}
+
+#specify whether you want to subset the data to only 1 and/or 2 nights of trapping
+n <- c(1,2)
+subsetCaptureData <- subsetDataToFewerNights(captureData, n)
+captureData1night <- subsetCaptureData[[1]]
+captureData2night <- subsetCaptureData[[2]]
+
+```
+
+```{r compare species accumulation curves across nights of trapping}
+
+library(vegan)
+
+spaMean <- NULL
+for (i in unique(captureData$siteID)){
+  spaMean <- rbind(spaMean, calcMeanSpecAccum(captureData1night, i, '1nt'))
+  spaMean <- rbind(spaMean, calcMeanSpecAccum(captureData2night, i, '2nt'))
+  spaMean <- rbind(spaMean, calcMeanSpecAccum(captureData, i, 'all'))
+  print(i)
+}
+
+ggplot(data = spaMean, mapping = aes(x = plots, y = meanS, group = dataset, color = dataset)) + geom_line() + facet_wrap(~siteID, scale = 'free')
+
+ggsave('spAccumBySiteByNights.png')
+       
+```
+
+```{r compare species accumulation curves between pathogen and diversity grids}
+
+library(vegan)
+
+plotTypes <- classifyPlots(captureData)
+divPlots <- plotTypes[[1]]
+pathPlots <- plotTypes[[2]]
+
+divData <- captureData %>% filter(plotID %in% divPlots)
+pathData <- captureData %>% filter(plotID %in% pathPlots)
+
+spaMean <- NULL
+for (i in unique(captureData$siteID)){
+  spaMean <- rbind(spaMean, calcMeanSpecAccum(divData, i, 'diversity'))
+  spaMean <- rbind(spaMean, calcMeanSpecAccum(pathData, i, 'pathogen'))
+}
+
+ggplot(data = spaMean, mapping = aes(x = plots, y = meanS, group = dataset, color = dataset)) + geom_line() + facet_wrap(~siteID)
+
+ggsave('spAccumBySiteByPlotType.png')
+       
+```
+
+```{r compare density estimates across nights of trapping}
