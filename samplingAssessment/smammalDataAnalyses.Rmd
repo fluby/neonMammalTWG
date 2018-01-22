@@ -235,10 +235,40 @@ ggplot(divEstimatesSonlyDiff, aes(x = obs, y = diff)) + geom_point() + geom_text
 
 ggsave('sSiteEstimatesAcrossNights.png')
 
+#3. compare observed vs. iChao1 estimate for each site for the pathogen and diversity grids
+plotTypes <- classifyPlots(captureData)
+divPlots <- plotTypes[[1]]
+pathPlots <- plotTypes[[2]]
 
+divData <- captureData %>% filter(plotID %in% divPlots)
+pathData <- captureData %>% filter(plotID %in% pathPlots)
+
+divDataEstimates <- calculateSiteSpRichness(divData, yearOI = '2016')
+pathDataEstimates <- calculateSiteSpRichness(pathData, yearOI = '2016')
+
+divDataSonly <- divDataEstimates %>% filter(key == 'observedS' | key == 'Estimate')
+divDataSonly$key <- gsub('Estimate', 'iChao1', divDataSonly$key)
+divDataSonly$key <- gsub('observedS', 'obs', divDataSonly$key)
+divDataSonly <- divDataSonly %>% rename(estimator = key, speciesRichness = value)
+divDataSonly$dataset <- 'div'
+#divDataSonlyDiff <- divDataSonly %>% spread(estimator, speciesRichness) %>% mutate(diff = iChao1 - obs)
+pathDataSonly <- pathDataEstimates %>% filter(key == 'observedS' | key == 'Estimate')
+pathDataSonly$key <- gsub('Estimate', 'iChao1', pathDataSonly$key)
+pathDataSonly$key <- gsub('observedS', 'obs', pathDataSonly$key)
+pathDataSonly <- pathDataSonly %>% rename(estimator = key, speciesRichness = value)
+pathDataSonly$dataset <- 'path'
+plotTypeEstimates <- rbind(divDataSonly, pathDataSonly)
+
+ggplot(plotTypeEstimates, aes(dataset, speciesRichness)) + geom_bar(aes(fill=estimator), position = "dodge", stat="identity") + facet_wrap(~siteID, scales = 'free_y')
+
+ggsave('sEstimatesAcrossPlotTypes.png')
 
 ```
 
 
 ```{r compare density estimates across nights of trapping}
+
+
+
+
 ```
