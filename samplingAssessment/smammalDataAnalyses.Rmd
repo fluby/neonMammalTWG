@@ -34,8 +34,10 @@ setwd(mypathtoTWGrepo)
 #function to pull published L1 small mammal box trapping data using the NEON API - returns only the capture data
 source(paste(mypathtoTWGrepo, '/functions/getL1data.R', sep = ''))
 
-#function to pull not yet published data from the Fulcrum database - available only to NEON personnel
-source(paste(mypathtoIPTrepo, '/smammal/scienceCode/getFulcrumData.R', sep = ''))
+if (file.exists('/Users/kthibault/')){
+  #function to pull not yet published data from the Fulcrum database - available only to NEON personnel
+  source(paste(mypathtoIPTrepo, '/smammal/scienceCode/getFulcrumData.R', sep = ''))
+}
 
 #function to group trapping nights by bout - bout IDs reflect the date of the nearest new moon
 source(paste(mypathtoTWGrepo, '/functions/assignBoutIDs.R', sep = ''))
@@ -54,6 +56,9 @@ source(paste(mypathtoTWGrepo, '/functions/calcMeanSpecAccum.R', sep = ''))
 
 #function to identify diversity and pathogen grids based on avergae nights of trapping per bout
 source(paste(mypathtoTWGrepo, '/functions/classifyPlots.R', sep = ''))
+
+#function to calculate plot-level observed species richness and iChao1 estimate
+source(paste(mypathtoTWGrepo, '/functions/calculatePlotSpRichness.R', sep = ''))
 
 ```
 
@@ -191,12 +196,7 @@ ggsave('spAccumBySiteByPlotType.png')
 ```
 ```{r compare diversity estimates across nights and plot types}
 
-library(SpadeR)
-#Type (1) abundance data (datatype = "abundance"): Input data consist of species (in rows) by community (in columns) matrix. The entries of each row are the observed abundances of a species in N communities.
-data(ChaoSpeciesData)
-results <- ChaoSpecies(ChaoSpeciesData$Abu,"abundance", k=10, conf = 0.95)
-temp <- data.frame(results$Species_table)
-temp$Estimate[which(row.names(temp) == "    iChao1 (Chiu et al. 2014)")]
+allDataEstimates <- calculatePlotSpRichness(captureData, yearOI = '2016')
 
 ```
 

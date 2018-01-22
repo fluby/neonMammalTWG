@@ -1,4 +1,4 @@
-calculatePlotSpRichness <- function(captureData, yearOI, dataset){
+calculatePlotSpRichness <- function(captureData, yearOI){
   
   library(SpadeR)
   for (i in unique(captureData$siteID)){
@@ -34,4 +34,10 @@ calculatePlotSpRichness <- function(captureData, yearOI, dataset){
     return(richResults)
   }
 }
-}
+
+# library(SpadeR) - from user guide:
+# #Type (1) abundance data (datatype = "abundance"): Input data consist of species (in rows) by community (in columns) matrix. The entries of each row are the observed abundances of a species in N communities.
+# data(ChaoSpeciesData)
+# results <- ChaoSpecies(ChaoSpeciesData$Abu,"abundance", k=10, conf = 0.95)
+# temp <- data.frame(results$Species_table)
+# temp$Estimate[which(row.names(temp) == "    iChao1 (Chiu et al. 2014)")]
