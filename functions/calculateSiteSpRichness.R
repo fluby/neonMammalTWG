@@ -1,36 +1,38 @@
-calculateSiteSpRichness <- function(captureData, yearOI, dataset){
+calculateSiteSpRichness <- function(captureData, yearOI){
   
   library(SpadeR)
+  
+  richResults <- NULL
   for (i in unique(captureData$siteID)){
-    cd <- captureData %>% filter(siteID == i & year == yearOI, 
+    cd <- captureData %>% filter(siteID == i & year == yearOI & 
                                  taxonProtocolCategory == 'target' & taxonRank == 'species')
     
-    #first calculate estimates and observed by plot
-    indsperplot <- cd %>% group_by(plotID, taxonID) %>% summarize(nInds = n_distinct(tagID))
-    richResults <- NULL
-    commMatrix <-indsperplot %>% spread(plotID, nInds, fill = 0)
-    commMatrix <-  data.frame(commMatrix)
-    comm <- commMatrix[,3:ncol(commMatrix)]
-    if (sum(comm) > 10 & nrow(comm) > 1 & ncol(comm) > 1){
-      sPerPlot <- indsperplot %>% group_by(plotID) %>% summarise(value = n_distinct(taxonID))
-      sPerPlot$key <- rep('observedS', nrow(sPerPlot))
-      richResults <- rbind(richResults, sPerPlot)
-      for (i in 1:ncol(comm)){
-        estimateS <- ChaoSpecies(comm[,i], "abundance", k=10, conf = 0.95)
-        temp <- data.frame(estimateS$Species_table)
-        results <- temp[which(row.names(temp) == "    iChao1 (Chiu et al. 2014)"),]
-        results <- gather(results)
-        results$plotID <- rep(names(comm)[i], nrow(results))
-        richResults <- rbind(richResults, results)
+    if (nrow(cd) > 0){
+    #first calculate estimates and observed by site
+      commMatrix <- cd %>% group_by(taxonID) %>% summarize(nInds = n_distinct(tagID))
+      comm <- commMatrix[,2:ncol(commMatrix)]
+      if (sum(comm) > 10){
+        sPerSite <- commMatrix %>% summarise(value = n_distinct(taxonID))
+        sPerSite$key <- rep('observedS', nrow(sPerSite))
+        sPerSite$siteID = i
+        richResults <- rbind(richResults, sPerSite)
+        tryCatch(
+            {
+            estimateS <- ChaoSpecies(comm$nInds, "abundance", k=10, conf = 0.95)
+            temp <- data.frame(estimateS$Species_table)
+            results <- temp[which(row.names(temp) == "    iChao1 (Chiu et al. 2014)"),]
+            results <- gather(results)
+            results$siteID <- rep(i, nrow(results))
+            richResults <- rbind(richResults, results)
+            }, error =function(cond){
+              message(cond)
+              return(NA)
+            }
+        )
+        }
       }
-    }
   }
-  # calculate means for each site
   if (!empty(richResults)){
-    #spaMean <- spaResults %>% group_by(plots) %>% summarise(meanS = mean(richness))
-    #spaMean$dataset <- rep(dataset, nrow(spaMean))
-    richResults$siteID <- substr(richResults$plotID, 1, 4)
     return(richResults)
   }
-}
 }

@@ -60,6 +60,9 @@ source(paste(mypathtoTWGrepo, '/functions/classifyPlots.R', sep = ''))
 #function to calculate plot-level observed species richness and iChao1 estimate
 source(paste(mypathtoTWGrepo, '/functions/calculatePlotSpRichness.R', sep = ''))
 
+#function to calculate site-level observed species richness and iChao1 estimate
+source(paste(mypathtoTWGrepo, '/functions/calculateSiteSpRichness.R', sep = ''))
+
 ```
 
 ```{r load datafiles}
@@ -196,6 +199,7 @@ ggsave('spAccumBySiteByPlotType.png')
 ```
 ```{r compare diversity estimates across nights and plot types}
 
+#1. compare mean S per plot - observed vs iChao1 estimate - for each of the 3 datasets by site
 allDataEstimates <- calculatePlotSpRichness(captureData, yearOI = '2016')
 allDataEstimates$dataset <- 'all'
 nt1Estimates <- calculatePlotSpRichness(captureData1night, yearOI = '2016')
@@ -211,6 +215,27 @@ divEstimatesSonly <- divEstimatesSonly %>% rename(estimator = key, speciesRichne
 ggplot(divEstimatesSonly, aes(x = estimator, y = speciesRichness)) + geom_boxplot(aes(fill=dataset)) + facet_wrap(~siteID, scales = 'free_y')
 
 ggsave('sEstimatesAcrossNights.png')
+
+
+#2. compare observed vs. iChao1 estimate - Observed for each site for each of the 3 datasets
+allDataEstimates <- calculateSiteSpRichness(captureData, yearOI = '2016')
+allDataEstimates$dataset <- 'all'
+nt1Estimates <- calculateSiteSpRichness(captureData1night, yearOI = '2016')
+nt1Estimates$dataset <- '1nt'
+nt2Estimates <- calculateSiteSpRichness(captureData, yearOI = '2016')
+nt2Estimates$dataset <- '2nt'
+divEstimates <- rbind(allDataEstimates, nt1Estimates, nt2Estimates)
+divEstimatesSonly <- divEstimates %>% filter(key == 'observedS' | key == 'Estimate')
+divEstimatesSonly$key <- gsub('Estimate', 'iChao1', divEstimatesSonly$key)
+divEstimatesSonly$key <- gsub('observedS', 'obs', divEstimatesSonly$key)
+divEstimatesSonly <- divEstimatesSonly %>% rename(estimator = key, speciesRichness = value)
+divEstimatesSonlyDiff <- divEstimatesSonly %>% spread(estimator, speciesRichness) %>% mutate(diff = iChao1 - obs)
+
+ggplot(divEstimatesSonlyDiff, aes(x = obs, y = diff)) + geom_point() + geom_text(aes(label = siteID), check_overlap =  T, vjust = -1, size=3) + ylab('iChao1 - Observed') + xlab('Observed Species Richness') + facet_grid(dataset~.)
+
+ggsave('sSiteEstimatesAcrossNights.png')
+
+
 
 ```
 

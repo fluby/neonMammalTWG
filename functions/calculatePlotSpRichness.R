@@ -35,7 +35,6 @@ calculatePlotSpRichness <- function(captureData, yearOI){
     }
   }
 
-  # calculate means for each site
   if (!empty(richResults)){
     richResults$siteID <- substr(richResults$plotID, 1, 4)
     #richMean <- richResults %>% group_by(siteID) %>% summarise(meanS = mean(richness))
