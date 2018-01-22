@@ -15,12 +15,12 @@ calculatePlotSpRichness <- function(captureData, yearOI){
       sPerPlot <- indsperplot %>% group_by(plotID) %>% summarise(value = n_distinct(taxonID))
       sPerPlot$key <- rep('observedS', nrow(sPerPlot))
       richResults <- rbind(richResults, sPerPlot)
-      for (i in 1:ncol(comm)){
-        estimateS <- ChaoSpecies(comm[,i], "abundance", k=10, conf = 0.95)
+      for (j in 1:ncol(comm)){
+        estimateS <- ChaoSpecies(comm[,j], "abundance", k=10, conf = 0.95)
         temp <- data.frame(estimateS$Species_table)
         results <- temp[which(row.names(temp) == "    iChao1 (Chiu et al. 2014)"),]
         results <- gather(results)
-        results$plotID <- rep(names(comm)[i], nrow(results))
+        results$plotID <- rep(names(comm)[j], nrow(results))
         richResults <- rbind(richResults, results)
       }
     }
