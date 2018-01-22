@@ -189,5 +189,17 @@ ggplot(data = spaMean, mapping = aes(x = plots, y = meanS, group = dataset, colo
 ggsave('spAccumBySiteByPlotType.png')
        
 ```
+```{r compare diversity estimates across nights and plot types}
+
+library(SpadeR)
+#Type (1) abundance data (datatype = "abundance"): Input data consist of species (in rows) by community (in columns) matrix. The entries of each row are the observed abundances of a species in N communities.
+data(ChaoSpeciesData)
+results <- ChaoSpecies(ChaoSpeciesData$Abu,"abundance", k=10, conf = 0.95)
+temp <- data.frame(results$Species_table)
+temp$Estimate[which(row.names(temp) == "    iChao1 (Chiu et al. 2014)")]
+
+```
+
 
 ```{r compare density estimates across nights of trapping}
+```

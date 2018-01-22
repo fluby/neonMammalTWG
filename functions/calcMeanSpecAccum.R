@@ -1,5 +1,5 @@
 calcMeanSpecAccum <- function(captureData, siteOI, dataset){
-  
+  library(vegan)
   cd <- captureData %>% filter(siteID == siteOI & taxonProtocolCategory == 'target' & taxonRank == 'species')
   indsperplot <- cd %>% group_by(year, plotID, taxonID) %>% summarize(nInds = n_distinct(tagID))
   spaResults <- NULL
