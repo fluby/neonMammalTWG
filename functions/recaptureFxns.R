@@ -1,3 +1,4 @@
+#functions taken from small mammal data quality test as part of NEON commissioning
 #number of captured individuals per site per year
 numCaptures <- function(trappingData, siteOI){
   dat <- trappingData %>% filter(siteID == siteOI & trapStatus > 1 & !is.na(tagID) & tagID != '')
