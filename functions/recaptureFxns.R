@@ -7,7 +7,7 @@ numCaptures <- function(captureData, groupingVariables){
   resultsWithoutTagID <- ddply(datWithoutTagID, c(groupingVariables), nrow)
   if (nrow(resultsWithoutTagID) > 0){
     results <- merge(resultsWithTagID, resultsWithoutTagID, by = groupingVariables)
-    results <- results %>% mutate(totalN = n + V1) %>% select(groupingVariables,totalN)
+    results <- results %>% mutate(totalN = `n_distinct(tagID)` + V1) %>% select(groupingVariables,totalN)
   } else {
     results <- resultsWithTagID %>% rename(totalN = n) %>% select(groupingVariables,totalN)
   }

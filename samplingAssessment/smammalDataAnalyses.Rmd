@@ -275,16 +275,57 @@ ggsave('sEstimatesAcrossPlotTypes.png')
 #set of functions to calculate number of captures and recaptures
 source(paste(mypathtoTWGrepo, '/functions/recaptureFxns.R', sep = ''))
 
+#calculate number of recaptures across bouts
 groupingVariables <- c('siteID', 'year', 'plotID')
 
 capsNAll <- numCaptures(captureData, groupingVariables)
 capsN1nt <- numCaptures(captureData1night, groupingVariables)
 capsN2nt <- numCaptures(captureData2night, groupingVariables)
 
-recapsNAll <- ddply(recapturedInds(captureData, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID))
+recapsNAll <- ddply(recapturedInds(captureData, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
 dataAll <- left_join(capsNAll, recapsNAll)
+recapsN1nt <- ddply(recapturedInds(captureData1night, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
+data1nt <- left_join(capsN1nt, recapsN1nt)
+recapsN2nt <- ddply(recapturedInds(captureData2night, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
+data2nt <- left_join(capsN2nt, recapsN2nt)
 
+#diversity grids only
+plotTypes <- classifyPlots(captureData)
+divPlots <- plotTypes[[1]]
+pathPlots <- plotTypes[[2]]
 
+divData <- captureData %>% filter(plotID %in% divPlots)
+
+capsNdiv <- numCaptures(divData, groupingVariables)
+recapsNdiv <- ddply(recapturedInds(divData, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
+dataDiv <- left_join(capsNdiv, recapsNdiv)
+dataDiv$recapsN[is.na(dataDiv$recapsN)] <- 0
+
+percDataDiv10 <- dataDiv %>% group_by(year, siteID) %>% summarise(n10 = length(which(recapsN >= 10)), nPlots = length(recapsN)) %>% mutate(perc10 = (n10/nPlots)*100)
+
+##calculate number of recaptures across bouts - pathogen grids only
+groupingVariables <- c('siteID', 'year', 'plotID', 'boutID')
+
+pathData <- captureData %>% filter(plotID %in% pathPlots)
+pathData2 <- captureData2night %>% filter(plotID %in% pathPlots)
+
+capsNpath <- numCaptures(pathData, groupingVariables)
+recapsNpath <- ddply(recapturedInds(pathData, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
+dataPath <- left_join(capsNpath, recapsNpath)
+
+capsNpath2 <- numCaptures(pathData2, groupingVariables)
+recapsNpath2 <- ddply(recapturedInds(pathData2, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
+dataPath2 <- left_join(capsNpath2, recapsNpath2)
+dataPath2$recapsN[is.na(dataPath2$recapsN)] <- 0
+
+dataPathcomp <- left_join(dataPath, dataPath2, by = groupingVariables)
+
+percDataPath10 <- dataPath %>% group_by(year, siteID, boutID) %>% summarise(n10 = length(which(recapsN >= 10)), nPlots = length(recapsN)) %>% mutate(perc10 = (n10/nPlots)*100)
+
+percDataPath2nt10 <- dataPath2 %>% group_by(year, siteID, boutID) %>% summarise(n10 = length(which(recapsN >= 10)), nPlots = length(recapsN)) %>% mutate(perc102nt = (n10/nPlots)*100)
+
+percDataPath10 <- left_join(percDataPath10, percDataPath2nt10, by = c('siteID', 'year', 'boutID'))
+percDataPath10$perc102nt[is.na(percDataPath10$perc102nt)] <- 0
 
 ```
 
