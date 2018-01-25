@@ -63,9 +63,6 @@ source(paste(mypathtoTWGrepo, '/functions/calculatePlotSpRichness.R', sep = ''))
 #function to calculate site-level observed species richness and iChao1 estimate
 source(paste(mypathtoTWGrepo, '/functions/calculateSiteSpRichness.R', sep = ''))
 
-#set of functions to calculate number of captures and recaptures
-source(paste(mypathtoTWGrepo, '/functions/recaptureFxns.R', sep = ''))
-
 ```
 
 ```{r load datafiles}
@@ -271,10 +268,21 @@ ggsave('sEstimatesAcrossPlotTypes.png')
 
 ```
 ```{r calculate number of recaptures within bouts and across bouts}
+
 #from http://www.phidot.org/forum/viewtopic.php?f=36&t=1429
 #It is critical to get enough recaptures. To estimate density at all by SECR you will probably need at least 10 recaptures, and 20 is a safer minimum. Aim for many more than the minimum! Precision improves with more recaptures, initially rapidly and then more slowly over 50 or so recaptures (e.g. Efford, Dawson & Robbins 2004 Fig. 2). Some studies have many recaptures of few animals (<20 individuals); estimation is possible, but confidence intervals will be very wide because of inherent spatial uncertainty (see below). To fit complicated models with covariates, finite mixtures, trends etc. you will need more data. 
 
+#set of functions to calculate number of captures and recaptures
+source(paste(mypathtoTWGrepo, '/functions/recaptureFxns.R', sep = ''))
 
+groupingVariables <- c('siteID', 'year', 'plotID')
+
+capsNAll <- numCaptures(captureData, groupingVariables)
+capsN1nt <- numCaptures(captureData1night, groupingVariables)
+capsN2nt <- numCaptures(captureData2night, groupingVariables)
+
+recapsNAll <- ddply(recapturedInds(captureData, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID))
+dataAll <- left_join(capsNAll, recapsNAll)
 
 
 
