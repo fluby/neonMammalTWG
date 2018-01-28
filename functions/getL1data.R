@@ -36,5 +36,6 @@ getL1data <- function(dpID, sitesOI){
   rm(mam.plotnight, mam.trapnight)
   
   captureData <- mam.pertrapnight %>% filter(trapStatus == "4 - more than 1 capture in one trap" | trapStatus == "5 - capture")
-  return(captureData)
+  allData <- mam.pertrapnight
+  return(list(captureData, allData))
 }
