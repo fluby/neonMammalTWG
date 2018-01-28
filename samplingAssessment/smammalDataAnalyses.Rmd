@@ -127,7 +127,7 @@ if (!exists('captureData')){
     captureData <- captureDataL1
   }
 }
-
+captureData <- captureData %>% filter(year!='2018')
 captureData <- assignBoutIDs(captureData)
 captureData <- get.taxNames.taxonID(captureData, mypathtoTWGrepo)
 
@@ -275,6 +275,10 @@ ggsave('sEstimatesAcrossPlotTypes.png')
 #set of functions to calculate number of captures and recaptures
 source(paste(mypathtoTWGrepo, '/functions/recaptureFxns.R', sep = ''))
 
+# if (empty(captureData$boutID)){
+#   captureData <- assignBoutIDs(captureData)
+# }
+
 #calculate number of recaptures across bouts
 groupingVariables <- c('siteID', 'year', 'plotID')
 
@@ -284,6 +288,7 @@ capsN2nt <- numCaptures(captureData2night, groupingVariables)
 
 recapsNAll <- ddply(recapturedInds(captureData, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
 dataAll <- left_join(capsNAll, recapsNAll)
+
 recapsN1nt <- ddply(recapturedInds(captureData1night, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
 data1nt <- left_join(capsN1nt, recapsN1nt)
 recapsN2nt <- ddply(recapturedInds(captureData2night, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
@@ -302,6 +307,7 @@ dataDiv <- left_join(capsNdiv, recapsNdiv)
 dataDiv$recapsN[is.na(dataDiv$recapsN)] <- 0
 
 percDataDiv10 <- dataDiv %>% group_by(year, siteID) %>% summarise(n10 = length(which(recapsN >= 10)), nPlots = length(recapsN)) %>% mutate(perc10 = (n10/nPlots)*100)
+percDataDiv10$dataset <- 'divAll'
 
 ##calculate number of recaptures across bouts - pathogen grids only
 groupingVariables <- c('siteID', 'year', 'plotID', 'boutID')
@@ -321,11 +327,34 @@ dataPath2$recapsN[is.na(dataPath2$recapsN)] <- 0
 dataPathcomp <- left_join(dataPath, dataPath2, by = groupingVariables)
 
 percDataPath10 <- dataPath %>% group_by(year, siteID, boutID) %>% summarise(n10 = length(which(recapsN >= 10)), nPlots = length(recapsN)) %>% mutate(perc10 = (n10/nPlots)*100)
+percDataPath10$dataset <- 'pathAll'
 
-percDataPath2nt10 <- dataPath2 %>% group_by(year, siteID, boutID) %>% summarise(n10 = length(which(recapsN >= 10)), nPlots = length(recapsN)) %>% mutate(perc102nt = (n10/nPlots)*100)
+percDataPath2nt10 <- dataPath2 %>% group_by(year, siteID, boutID) %>% summarise(n10 = length(which(recapsN >= 10)), nPlots = length(recapsN)) %>% mutate(perc10 = (n10/nPlots)*100)
+percDataPath2nt10$dataset <- 'path2nt'
 
-percDataPath10 <- left_join(percDataPath10, percDataPath2nt10, by = c('siteID', 'year', 'boutID'))
-percDataPath10$perc102nt[is.na(percDataPath10$perc102nt)] <- 0
+# percDataPath10 <- left_join(percDataPath10, percDataPath2nt10, by = c('siteID', 'year', 'boutID'))
+# percDataPath10$perc102nt[is.na(percDataPath10$perc102nt)] <- 0
+
+perc10combined <- rbind(percDataDiv10,percDataPath10, percDataPath2nt10)
+perc10comb2016 <- perc10combined %>% filter(year == '2016')
+
+require(scales)
+
+ggplot(percDataDiv10 %>% filter(year == '2016'), aes(x=perc10, fill = dataset)) + geom_bar(aes(y = (..count..)/sum(..count..)), positio = 'dodge') + scale_y_continuous(labels=percent)
+  
+  geom_histogram(binwidth=5, position="dodge") 
++
+    geom_vline(data=cdat, aes(xintercept=rating.mean,  colour=cond),
+               linetype="dashed", size=1)
+
+
+ggplot(percDataDiv10 %>% filter(year == '2016'), aes(perc10)) + geom_histogram(aes(y=..density..),      # Histogram with density instead of count on y-axis
+                   binwidth=10,
+                   colour="black", fill="white") +
+    geom_density(alpha=.2, fill="#FF6666")  # Overlay with transparent density plot
+ggplot(percDataDiv10, aes(perc10, year)) + stat_binhex()
+
+
 
 ```
 

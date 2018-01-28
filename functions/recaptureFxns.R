@@ -9,7 +9,7 @@ numCaptures <- function(captureData, groupingVariables){
     results <- merge(resultsWithTagID, resultsWithoutTagID, by = groupingVariables)
     results <- results %>% mutate(totalN = `n_distinct(tagID)` + V1) %>% select(groupingVariables,totalN)
   } else {
-    results <- resultsWithTagID %>% rename(totalN = n) %>% select(groupingVariables,totalN)
+    results <- resultsWithTagID %>% rename(totalN = `n_distinct(tagID)`) %>% select(groupingVariables,totalN)
   }
   return(results)
 }
