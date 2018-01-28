@@ -127,9 +127,13 @@ if (!exists('captureData')){
     captureData <- captureDataL1
   }
 }
-captureData <- captureData %>% filter(year!='2018')
+
 captureData <- assignBoutIDs(captureData)
+captureData <- captureData %>% filter(year!='2018')
 captureData <- get.taxNames.taxonID(captureData, mypathtoTWGrepo)
+if (!exists('captureData$boutID')){
+  captureData <- captureData %>% rename(boutID = boutID.y)
+}
 
 spByPlot <- captureData %>% filter(taxonRank == 'species' & taxonProtocolCategory == 'target') %>% distinct(boutID, collectDate, plotID, taxonID)
 
@@ -283,16 +287,16 @@ source(paste(mypathtoTWGrepo, '/functions/recaptureFxns.R', sep = ''))
 groupingVariables <- c('siteID', 'year', 'plotID')
 
 capsNAll <- numCaptures(captureData, groupingVariables)
-capsN1nt <- numCaptures(captureData1night, groupingVariables)
-capsN2nt <- numCaptures(captureData2night, groupingVariables)
+#capsN1nt <- numCaptures(captureData1night, groupingVariables)
+#capsN2nt <- numCaptures(captureData2night, groupingVariables)
 
-recapsNAll <- ddply(recapturedInds(captureData, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
-dataAll <- left_join(capsNAll, recapsNAll)
-
-recapsN1nt <- ddply(recapturedInds(captureData1night, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
-data1nt <- left_join(capsN1nt, recapsN1nt)
-recapsN2nt <- ddply(recapturedInds(captureData2night, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
-data2nt <- left_join(capsN2nt, recapsN2nt)
+# recapsNAll <- ddply(recapturedInds(captureData, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
+# dataAll <- left_join(capsNAll, recapsNAll)
+# 
+# recapsN1nt <- ddply(recapturedInds(captureData1night, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
+# data1nt <- left_join(capsN1nt, recapsN1nt)
+# recapsN2nt <- ddply(recapturedInds(captureData2night, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
+# data2nt <- left_join(capsN2nt, recapsN2nt)
 
 #diversity grids only
 plotTypes <- classifyPlots(captureData)
@@ -302,7 +306,7 @@ pathPlots <- plotTypes[[2]]
 divData <- captureData %>% filter(plotID %in% divPlots)
 
 capsNdiv <- numCaptures(divData, groupingVariables)
-recapsNdiv <- ddply(recapturedInds(divData, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
+recapsNdiv <- ddply(recapturedInds(divData, groupingVariables), c(groupingVariables), summarise, recapsN = n_distinct(tagID, na.rm = TRUE))
 dataDiv <- left_join(capsNdiv, recapsNdiv)
 dataDiv$recapsN[is.na(dataDiv$recapsN)] <- 0
 
@@ -316,7 +320,7 @@ pathData <- captureData %>% filter(plotID %in% pathPlots)
 pathData2 <- captureData2night %>% filter(plotID %in% pathPlots)
 
 capsNpath <- numCaptures(pathData, groupingVariables)
-recapsNpath <- ddply(recapturedInds(pathData, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
+recapsNpath <- ddply(recapturedInds(pathData, groupingVariables), c(groupingVariables), plyr::summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
 dataPath <- left_join(capsNpath, recapsNpath)
 
 capsNpath2 <- numCaptures(pathData2, groupingVariables)

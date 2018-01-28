@@ -16,15 +16,16 @@ numCaptures <- function(captureData, groupingVariables){
 
 #tagIDs for each individual with at least one recapture at a given site
 recapturedInds <- function(captureData, groupingVariables){
-  dat <- captureData %>% filter(!is.na(tagID) & tagID != '' & taxonProtocolCategory == 'target')
+  dat <- captureData %>% filter(!is.na(tagID) & tagID != '' & taxonProtocolCategory == 'target') %>% mutate(tagYr = paste(tagID, year, sep = '_'))
   idsToExclude <- NULL
   for (i in unique(dat$tagID)){
-    if (grepl('^O', i) | grepl('^0', i)){
       ufates <- unique(dat$fate[dat$tagID == i])
       if (length(ufates) == 1){
-        if (ufates == 'dead'){
+        if (!is.na(ufates) & ufates == 'dead'){
           idsToExclude <- c(idsToExclude, i)
-        }}}}
-  dat2 <- dat %>% filter(!(tagID %in% idsToExclude)) %>% count(tagID)
-  return(dat %>% filter(tagID %in% dat2$tagID[dat2$n>1]) %>% select(groupingVariables, tagID))
+        }}}
+  dat2 <- dat %>% filter(!(tagID %in% idsToExclude))
+  dat3 <- ddply(dat2, c(groupingVariables, 'tagYr'), count)
+  dat4 <- dat %>% filter(tagYr %in% dat3$tagYr[dat3$n>1]) %>% select(groupingVariables, tagID)
+  return(dat4)
 }
