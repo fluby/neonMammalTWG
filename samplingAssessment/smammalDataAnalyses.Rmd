@@ -1,7 +1,12 @@
 ---
 title: "smammalDataAnalyses"
 output: pdf_document
+date: '01-28-2018'
 ---
+
+Below are some preliminary analyses of the small mammal data that NEON have collected to date to inform sampling design questions. NEON started mammal trapping in 2013 at just a handful of sites, with the number of sites sampled increasing gradually overtime, with XX sites sampled in 2017. At each site, there are typically 3 pathogen grids and 3-5 diveristy grids. These are distinguished by blood samples being collected and plots being trapped for 3 consecutive nights on pathogen grids, whereas no blood samples are collected and trapping only occurs for one night per bout. 
+
+Determination of sufficient sampling depends significantly on the question being asked. NEON is unique
 
 ```{r load libraries}
 
@@ -78,12 +83,27 @@ captureDataL1 <- mamDataL1[[1]]
 allDataL1 <- mamDataL1[[2]]
 # fix error discovered while working on bout id assignment
 captureDataL1$collectDate[captureDataL1$plotID == 'UNDE_027' & captureDataL1$collectDate == '2015-08-31'] <- '2016-08-31'
+allDataL1$collectDate[allDataL1$plotID == 'UNDE_027' & allDataL1$collectDate == '2015-08-31'] <- '2016-08-31'
 
 #get latest field data from Fulcrum - available only to NEON personnel
-if (exists(mypathtoIPTrepo)){
+if (exists('mypathtoIPTrepo')){
   ing.path <- paste(mypathtoIPTrepo, "/smammal/defData/mam_dataingest_NEON.DOC.001406.txt", sep ="")
   fulcrumData <- getFulcrumData(ing.path)
 }
+
+#create list of plotIDs and dates with 0 captures
+results <- data.frame(siteID = as.character(), plotID = as.character(), collectDate = as.character())
+allDataL1$trapStat <- substr(allDataL1$trapStatus, 1, 1)
+for (i in unique(allDataL1$siteID)){
+  temp <- allDataL1 %>% filter(siteID == i)
+  for (j in unique(temp$plotID)){
+    temp <- allDataL1 %>% filter(siteID == i & plotID == j) %>% group_by(collectDate) %>% count(trapStat)
+    temp2 <- temp %>% group_by(collectDate) %>% filter(!'5' %in% trapStat) %>% select(collectDate)
+    dates <- unique(temp2)
+    results <- rbind(results, cbind(siteID = rep(i, nrow(dates)), plotID = rep(j, nrow(dates)), collectDate = dates))
+  }
+}
+zeroCapts <- results
 
 ```
 
@@ -315,6 +335,11 @@ dataDiv$dataset <- 'divAll'
 percDataDiv10 <- dataDiv %>% group_by(year, siteID) %>% summarise(n10 = length(which(recapsN >= 10)), nPlots = length(recapsN)) %>% mutate(perc10 = (n10/nPlots)*100)
 percDataDiv10$dataset <- 'divAll'
 
+percDataDiv10 %>% filter()
+
+pathData <- captureData %>% filter(plotID %in% pathPlots)
+pathData2 <- captureData2night %>% filter(plotID %in% pathPlots)
+
 capsNpath <- numCaptures(pathData, groupingVariables)
 recapsNpath <- ddply(recapturedInds(pathData, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
 dataPath <- left_join(capsNpath, recapsNpath)
@@ -333,13 +358,16 @@ percDataPath2nt10 <- dataPath2 %>% group_by(year, siteID) %>% summarise(n10 = le
 percDataPath2nt10$dataset <- 'path2nt'
 
 nCapsCombined <- rbind(dataDiv, dataPath, dataPath2)
-test <- nCapsCombined %>% complete(dataset, nesting(year, plotID))
+nCapsCombined <- nCapsCombined %>% filter(siteID != 'BARR' & year != '2013')
 
 #plot mean captures and recaps per plot by site by year
-for (i in unique(captureData$siteID)){
-  
-}
+ggplot(nCapsCombined, aes(year, totalN)) + geom_boxplot(aes(fill=dataset)) + facet_wrap(~siteID, scales = 'free_y') + ylab('Mean Number of Individuals Captured Per Plot') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
+ggsave('meanCapsPerPlotBySiteByDataset.png', width = 10, height = 10, units = "in")
+
+ggplot(nCapsCombined, aes(year, recapsN)) + geom_boxplot(aes(fill=dataset)) + facet_wrap(~siteID, scales = 'free_y') + ylab('Mean Number of Recaptured Individuals Per Plot') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggsave('meanRecapsPerPlotBySiteByDataset.png', width = 10, height = 10, units = "in")
 
 perc10combined <- rbind(percDataDiv10,percDataPath10, percDataPath2nt10)
 perc10comb2016 <- perc10combined %>% filter(year == '2016')
@@ -355,26 +383,38 @@ ggplot()
 ```
 
 
-```{r calculate number of recaptures within bouts}
+```{r calculate number of captures and recaptures within bouts}
 
 ##calculate number of recaptures across bouts - pathogen grids only
 groupingVariables <- c('siteID', 'year', 'plotID', 'boutID')
 
-pathData <- captureData %>% filter(plotID %in% pathPlots)
-pathData2 <- captureData2night %>% filter(plotID %in% pathPlots)
+capsNdiv <- numCaptures(divData, groupingVariables)
+capsNdiv$dataset <- 'divAll'
 
 capsNpath <- numCaptures(pathData, groupingVariables)
 recapsNpath <- ddply(recapturedInds(pathData, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
-dataPath <- left_join(capsNpath, recapsNpath)
+capsNpath$dataset <- 'pathAll'
+recapsNpath$dataset <- 'pathAll'
 
 capsNpath2 <- numCaptures(pathData2, groupingVariables)
+capsNpath2$dataset <- 'path2nt'
 recapsNpath2 <- ddply(recapturedInds(pathData2, groupingVariables), c(groupingVariables), summarize, recapsN = n_distinct(tagID, na.rm = TRUE))
-dataPath2 <- left_join(capsNpath2, recapsNpath2)
-dataPath2$recapsN[is.na(dataPath2$recapsN)] <- 0
+recapsNpath2$recapsN[is.na(recapsNpath2$recapsN)] <- 0
+recapsNpath2$dataset <- 'path2nt'
 
-#dataPathcomp <- left_join(dataPath, dataPath2, by = groupingVariables)
+capPerBout <- rbind(capsNdiv, capsNpath, capsNpath2) %>% filter(year == '2017' & siteID != 'BARR')
+recapPerBout <- rbind(recapsNpath, recapsNpath2) %>% filter(year== '2017' & siteID != 'BARR')
 
-percDataPath10 <- dataPath %>% group_by(year, siteID, boutID) %>% summarise(n10 = length(which(recapsN >= 10)), nPlots = length(recapsN)) %>% mutate(perc10 = (n10/nPlots)*100)
+#plot mean captures and recaps per plot per bout by site by year
+ggplot(capPerBout, aes(year, totalN)) + geom_boxplot(aes(fill=dataset)) + facet_wrap(~siteID, scales = 'free_y') + ylab('Number of Individuals Captured Per Bout Per Plot') #+ theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggsave('meanCapsPerBoutPerPlotBySiteByDataset2017.png', width = 7, height = 7, units = "in")
+
+ggplot(recapPerBout, aes(year, recapsN)) + geom_boxplot(aes(fill=dataset)) + facet_wrap(~siteID, scales = 'free_y') + ylab('Number of Recaptured Individuals Per Bout Per Plot') #+ theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggsave('meanRecapsPerBoutPerPlotBySiteByDataset2017.png', width = 7, height = 7, units = "in")
+
+percDataPath10 <- recapPerBout %>% group_by(year, siteID, boutID) %>% summarise(n10 = length(which(recapsN >= 10)), nPlots = length(recapsN)) %>% mutate(perc10 = (n10/nPlots)*100)
 percDataPath10$dataset <- 'pathAll'
 
 percDataPath2nt10 <- dataPath2 %>% group_by(year, siteID, boutID) %>% summarise(n10 = length(which(recapsN >= 10)), nPlots = length(recapsN)) %>% mutate(perc10 = (n10/nPlots)*100)
@@ -389,7 +429,6 @@ perc10comb2016 <- perc10combined %>% filter(year == '2016')
 perc10comb2016perc <- perc10comb2016 %>% group_by(dataset, perc10) %>% tally %>% mutate(percent=(n/sum(n))*100)
 
 ggplot(perc10comb2016perc, aes(x=perc10, y = percent, fill=dataset)) + geom_bar(stat = "identity",  position = 'dodge') 
-
 
 
 ```
